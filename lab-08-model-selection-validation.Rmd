@@ -12,7 +12,7 @@ output:
     code_folding: hide
     df_print: paged
 editor_options:
-  chunk_output_type: console
+  chunk_output_type: inline
 ---
 
 ```{r setup, echo=FALSE, message=FALSE, warning=FALSE}
@@ -63,19 +63,19 @@ By the end of this lab, you should be able to:
 
 ## Load and inspect
 
-```{r load_data, echo=TRUE, eval=FALSE}
+```{r load_data, echo=TRUE, eval=TRUE}
 # GOAL: Read the dataset and keep 2023 observations.
 
 df <- read_csv("data/us-ams-simple.csv", na = c("-9999")) %>%
   clean_names() %>%
-  filter(year_local == ___)
+  filter(year_local == 2023)
 
 glimpse(df)
 ```
 
 ## Derive time columns if needed
 
-```{r derive_time, echo=TRUE, eval=FALSE}
+```{r derive_time, echo=TRUE, eval=TRUE}
 # GOAL: Create date / month columns if they do not already exist.
 
 df <- df %>%
@@ -99,28 +99,28 @@ Possible examples:
 - response: `le`, `fc`, `gpp`
 - predictors: `ta`, `swc`, `vpd`, `rg`
 
-```{r choose_vars, echo=TRUE, eval=FALSE}
-response_var <- "___"
-pred1 <- "___"
-pred2 <- "___"
+```{r choose_vars, echo=TRUE, eval=TRUE}
+response_var <- "gpp"
+pred1 <- "swc"
+pred2 <- "ta"
 
 # CHECK: do these variables exist?
 c(response_var, pred1, pred2) %in% names(df)
 ```
 
 > Which variables did you choose, and why do you think they may be related?
-
+>**I chose soil water content (swc) and atmospheric temperature (ta) to predict gross primary productivity (GPP). I think these are related because I hypothesize that higher swcs and higher tas will increase gpp, since it is easier for plants to respire with more water and warmer temperatures.**
 ---
 
 ## 2) Create a clean analysis dataset
 
 Keep only rows with non-missing values for your chosen variables.
 
-```{r make_analysis_df, echo=TRUE, eval=FALSE}
+```{r make_analysis_df, echo=TRUE, eval=TRUE}
 # GOAL: Create an analysis data frame using only complete cases.
 
 df_mod <- df %>%
-  select(___, ___, ___) %>%
+  select(response_var, pred1, pred2) %>%
   drop_na()
 
 glimpse(df_mod)
@@ -135,23 +135,24 @@ Fit:
 - **Model 2:** response ~ pred2
 - **Model 3:** response ~ pred1 + pred2
 
-```{r fit_models, echo=TRUE, eval=FALSE}
-m1 <- lm(___ ~ ___, data = df_mod)
-m2 <- lm(___ ~ ___, data = df_mod)
-m3 <- lm(___ ~ ___ + ___, data = df_mod)
+```{r fit_models, echo=TRUE, eval=TRUE}
+m1 <- lm(gpp ~ swc, data = df_mod)
+m2 <- lm(gpp ~ ta, data = df_mod)
+m3 <- lm(gpp ~ (swc + ta), data = df_mod)
 ```
 
 ---
 
 ## 4) View coefficients with `tidy()`
 
-```{r tidy_models, echo=TRUE, eval=FALSE}
+```{r tidy_models, echo=TRUE, eval=TRUE}
 tidy(m1)
 tidy(m2)
 tidy(m3)
 ```
 
 > Which coefficients are positive? Which are negative? Do they make scientific sense?
+>**The ta coefficient is positive, which displays a positive correlation between atmospheric temperature and gpp. This makes sense because plants prefer warmer climates to grow + reproduce. The swc coefficient is slightly negative, displaying a negative correlation between swc and gpp. This could make scientific sense because I hypothesize that as gpp increases, plants draw more moisture out of the soil, and into their root systems instead. **
 
 ---
 
@@ -159,37 +160,40 @@ tidy(m3)
 
 Make scatterplots with fitted linear trends for Model 1 and Model 2.
 
-```{r plot_m1, echo=TRUE, eval=FALSE}
+```{r plot_m1, echo=TRUE, eval=TRUE}
 ggplot(df_mod, aes(x = .data[[pred1]], y = .data[[response_var]])) +
   geom_point(alpha = 0.2) +
   geom_smooth(method = "lm", se = FALSE) +
-  theme_classic(base_size = 18) +
+  theme_classic(base_size = 12) +
+  theme(text = element_text(family = "Times New Roman")) +
   labs(
     x = pred1,
     y = response_var,
-    title = "Model 1"
+    title = "Effect of Soil Water Content (swc) on Gross Primary Productivity (gpp)"
   )
 ```
 
-```{r plot_m2, echo=TRUE, eval=FALSE}
+```{r plot_m2, echo=TRUE, eval=TRUE}
 ggplot(df_mod, aes(x = .data[[pred2]], y = .data[[response_var]])) +
   geom_point(alpha = 0.2) +
   geom_smooth(method = "lm", se = FALSE) +
-  theme_classic(base_size = 18) +
+  theme_classic(base_size = 15) +
+  theme(text = element_text(family = "Times New Roman")) +
   labs(
     x = pred2,
     y = response_var,
-    title = "Model 2"
+    title = "Effect of Air Temperature (ta) on GPP"
   )
 ```
 
 > Visually, which model seems stronger? Why?
+>**Visually, Model 2, which compares ta and gpp appears stronger than the effect of swc on gpp. This is because the slope of air temperature (ta) is more positively correlated, and the jitter values appear to fit the slope more accurately. This would reveal that ta has a greater impact on gpp than swc.**
 
 ---
 
 ## 6) Get fitted values and residuals with `augment()`
 
-```{r augment_models, echo=TRUE, eval=FALSE}
+```{r augment_models, echo=TRUE, eval=TRUE}
 aug_m1 <- augment(m1, data = df_mod)
 aug_m2 <- augment(m2, data = df_mod)
 aug_m3 <- augment(m3, data = df_mod)
@@ -211,7 +215,7 @@ And:
 
 $SST = SSR + SSE$
 
-```{r ss_model1, echo=TRUE, eval=FALSE}
+```{r ss_model1, echo=TRUE, eval=TRUE}
 y <- df_mod[[response_var]]
 ybar <- mean(y)
 
@@ -227,6 +231,7 @@ tibble(
 ```
 
 > In words, what do SST and SSE represent?
+>*SST represents the total variability of each datapoint to the entire dataset's mean, as a single value. Higher values would showcase higher variability within the data, and vice versa. The High SST between swc and gpp in this analysis displays high statistical variablity. SSE represents the variability of each datapoint to the AUGMENTED regression model. This can help determine random variation within a dataset (or the dataset's "error"), instead of its variability within itself.**
 
 ---
 
@@ -236,19 +241,20 @@ Use:
 
 $R^2 = 1 - SSE / SST$
 
-```{r r2_manual, echo=TRUE, eval=FALSE}
-r2_m1_manual <- ___
+```{r r2_manual, echo=TRUE, eval=TRUE}
+r2_m1_manual <- 1 - sse_m1 / sst
 
 r2_m1_manual
 ```
 
 ## 9) Compare to `glance()`
 
-```{r glance_model1, echo=TRUE, eval=FALSE}
+```{r glance_model1, echo=TRUE, eval=TRUE}
 glance(m1)
 ```
 
 > Does your manual R-squared match the value from `glance()`?
+>**Yes, my manual calculation of r-squared matches the glance() value. This low r-squared value displays a high randomness within the dataset, and a very weak correlation between individual data values and the overall regression line**
 
 ---
 
@@ -259,9 +265,9 @@ Use:
 - $MSE = mean(e_i^2)$
 - $RMSE = sqrt(MSE)$
 
-```{r mse_rmse_m1, echo=TRUE, eval=FALSE}
-mse_m1 <- ___
-rmse_m1 <- ___
+```{r mse_rmse_m1, echo=TRUE, eval=TRUE}
+mse_m1 <- mean(aug_m1$.resid^2)
+rmse_m1 <- sqrt(mse_m1)
 
 tibble(
   mse_m1 = mse_m1,
@@ -270,12 +276,13 @@ tibble(
 ```
 
 > What does RMSE mean in the units of your response variable?
+>**RMSE displays the average error between observed gpp points and the regression line between swc and gpp. Since the RMSE is very high, it reveals a poor relationship between gpp and swc %.**
 
 ---
 
 ## 11) Compare all three models using `glance()`
 
-```{r compare_glance, echo=TRUE, eval=FALSE}
+```{r compare_glance, echo=TRUE, eval=TRUE}
 bind_rows(
   glance(m1) %>% mutate(model = "m1"),
   glance(m2) %>% mutate(model = "m2"),
@@ -285,12 +292,13 @@ bind_rows(
 ```
 
 > Which model has the highest R-squared? Is that enough to call it the best model?
+>**Model 3 which compares ta and gpp has the highest r^2, which explains that observed values are a better fit to the trendline than swc and gpp or (swc + ta) and gpp is. This is not enough to call it the best model, depending on what the model is attempting to represent.**
 
 ---
 
 ## 12) Compare all three models using RMSE
 
-```{r compare_rmse, echo=TRUE, eval=FALSE}
+```{r compare_rmse, echo=TRUE, eval=TRUE}
 rmse_tbl <- bind_rows(
   augment(m1, data = df_mod) %>%
     summarise(rmse = sqrt(mean(.resid^2))) %>%
@@ -307,6 +315,7 @@ rmse_tbl
 ```
 
 > Which model has the smallest RMSE? Does that agree with the R-squared ranking?
+>**The ta + swc vs gpp model (model 3) has the smallest RMSE, which agrees with the R-squared ranking due to its larger value. This is because the RMSE compares the augmented model instead of the observed sample.**
 
 ---
 
@@ -314,31 +323,34 @@ rmse_tbl
 
 Make residual vs fitted plots for at least two models.
 
-```{r resid_plot_m1, echo=TRUE, eval=FALSE}
+```{r resid_plot_m1, echo=TRUE, eval=TRUE}
 ggplot(aug_m1, aes(x = .fitted, y = .resid)) +
-  geom_point(alpha = 0.2) +
+  geom_point(alpha = 0.25, color = "steelblue") +
   geom_hline(yintercept = 0, linetype = "dashed") +
   theme_classic(base_size = 18) +
+  theme(text = element_text(family = "Times New Roman")) +
   labs(
     x = "Fitted values",
     y = "Residuals",
-    title = "Residuals: Model 1"
+    title = "Residuals: Model 1 (swc vs gpp)"
   )
 ```
 
-```{r resid_plot_m3, echo=TRUE, eval=FALSE}
+```{r resid_plot_m3, echo=TRUE, eval=TRUE}
 ggplot(aug_m3, aes(x = .fitted, y = .resid)) +
-  geom_point(alpha = 0.2) +
+  geom_point(alpha = 0.2, color="darkblue") +
   geom_hline(yintercept = 0, linetype = "dashed") +
   theme_classic(base_size = 18) +
+  theme(text = element_text(family = "Times New Roman")) +
   labs(
     x = "Fitted values",
     y = "Residuals",
-    title = "Residuals: Model 3"
+    title = "Residuals: Model 3 (swc + ta vs. gpp)"
   )
 ```
 
 > Do the residual plots suggest any problems (curvature, changing variance, outliers)? Which model looks more appropriate?
+>**The residual plots suggest that the swc vs gpp model has high residuals, and that the (swc + ta) vs gpp model (Model 3), has an curvature and increase in outliers around the fitted values of 10-15 that are not described in the linear regession model. Overall, I think that Model 3 looks more appropriate because the density of outliers is less extreme and there are clearer trends in data.**
 
 ---
 
@@ -348,16 +360,16 @@ Choose the model you think is best supported by the evidence.
 
 Fill in:
 
-> My preferred model is `___`
+> My preferred model is `Model 3`
 
 > I based this decision on:
-> - `___`
-> - `___`
-> - `___`
+> - `Highest r^2 value`
+> - `lowest RMSE value`
+> - `Least residual density`
 
 **Prompt (5–7 sentences):** Explain why you chose this model. Use at least two quantitative criteria (such as R-squared, RMSE, or sigma) and one visual criterion (such as the residual plot or scatterplot). Also explain why a different model was less convincing.
 
-> *Write your answer here.*
+> **I chose Model 3 because it had the highest r^2 value, being .327, as well as the lowest RMSE value, being 8.50. These are slight improvements on the values from Model 2, comparing just ta and gpp. Model 3, which compares gpp to the sum of air temperature AND soil water content also displayed a clearer fitted trendline to the linear regression model, despite a curvature around the fitted values of 10. Model 1 was less convincing because there were high residuals, and the r squared value was significantly lower, being .11 instead of .327. Overall, however, I don't think any model is necessarily a good fit because all r^2's are pretty low, and all RMSEs are pretty high.**
 
 ---
 
