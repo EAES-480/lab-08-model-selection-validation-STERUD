@@ -404,10 +404,10 @@ Possible examples depend on your file, but might include things like:
 - `h`
 - `rh`
 
-```{r choose_new_predictors, echo=TRUE, eval=FALSE}
+```{r choose_new_predictors, echo=TRUE, eval=TRUE}
 response_var <- "le"
-pred1 <- "___"
-pred2 <- "___"
+pred1 <- "h"
+pred2 <- "rh"
 
 # CHECK: do these exist?
 c(response_var, pred1, pred2) %in% names(df)
