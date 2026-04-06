@@ -71,6 +71,10 @@ df <- read_csv("data/us-ams-simple.csv", na = c("-9999")) %>%
   filter(year_local == 2023)
 
 glimpse(df)
+
+df2 <- read_csv("data/NewAmeriflux.csv", na = c("-9999")) %>%
+  clean_names() %>%
+  filter(year_local == 2023)
 ```
 
 ## Derive time columns if needed
@@ -405,15 +409,21 @@ Possible examples depend on your file, but might include things like:
 - `rh`
 
 ```{r choose_new_predictors, echo=TRUE, eval=TRUE}
+library(readr)
+NewAmeriflux <- read_csv("NewAmeriflux.csv", na = c("-9999")) %>%
+  clean_names() %>%
+  filter(year_local == 2023)
+glimpse(NewAmeriflux)
+
 response_var <- "le"
-pred1 <- "h"
+pred1 <- "ws"
 pred2 <- "rh"
 
 # CHECK: do these exist?
-c(response_var, pred1, pred2) %in% names(df)
+c(response_var, pred1, pred2) %in% names(NewAmeriflux)
 ```
 
-> Why did you choose these two predictors?
+> Would higher ws or wind shear increase the amount of latent energy? Would higher relative humidity increase the amount of latent energy? These are the questions I thought of when choosing my predictor variables.
 
 ---
 
@@ -421,15 +431,16 @@ c(response_var, pred1, pred2) %in% names(df)
 
 Keep only complete cases for the response and the two predictors.
 
-```{r make_prediction_df, echo=TRUE, eval=FALSE}
-df_pred <- df %>%
-  select(___, ___, ___) %>%
+```{r make_prediction_df, echo=TRUE, eval=TRUE}
+df_pred <- NewAmeriflux %>%
+  select(le, ws, rh) %>%
   drop_na()
 
 glimpse(df_pred)
+count(df_pred)
 ```
 
-> How many observations remain after removing missing values?
+> *15,851 observations remain after dropping the missing values.*
 
 ---
 
@@ -437,8 +448,8 @@ glimpse(df_pred)
 
 Use 20% of the data as a final **test set**.
 
-```{r split_train_test, echo=TRUE, eval=FALSE}
-set.seed(___)
+```{r split_train_test, echo=TRUE, eval=TRUE}
+set.seed(112)
 
 df_shuf <- df_pred %>%
   slice_sample(prop = 1)
@@ -456,6 +467,7 @@ tibble(
 ```
 
 > Why do we keep the test set separate from model selection?
+>*We keep the "test" set seperate from the model section so that we can keep some data unused whilst training the "train" set data. This way it we can use the test set later to... test if the model prediction was good.*
 
 ---
 
@@ -468,16 +480,16 @@ Use:
 
 Write them out in words below:
 
-> Model 1: `___`
+> Model 1: `le ~ ws`
 
-> Model 2: `___`
+> Model 2: `le ~ rh`
 
 ---
 
 ## 19) Create 4 folds on the training data
 
-```{r make_cv_folds, echo=TRUE, eval=FALSE}
-set.seed(___)
+```{r make_cv_folds, echo=TRUE, eval=TRUE}
+set.seed(500)
 
 train_folds <- train_data %>%
   mutate(fold = rep(1:4, length.out = n()))
@@ -486,7 +498,7 @@ train_folds %>% count(fold)
 ```
 
 > Why do we create folds only on the training data, and not using the test data?
-
+>*We create folds to prevent overfitting of specific data points on a model. Doing this with the training data allows us to create a stronger model on a subset, then be able to test it later on with the test data.*
 ---
 
 ## 20) Run 4-fold cross-validation
@@ -497,14 +509,14 @@ For each fold:
 - validate on 1 held-out fold
 - compute RMSE
 
-```{r cv_loop, echo=TRUE, eval=FALSE}
+```{r cv_loop, echo=TRUE, eval=TRUE}
 cv_results <- map_dfr(1:4, function(k) {
 
   cv_train <- train_folds %>% filter(fold != k)
   cv_valid <- train_folds %>% filter(fold == k)
 
-  m1 <- lm(___ ~ ___, data = cv_train)
-  m2 <- lm(___ ~ ___ + ___, data = cv_train)
+  m1 <- lm(le ~ ws, data = cv_train)
+  m2 <- lm(le ~ rh, data = cv_train)
 
   tibble(
     fold = k,
@@ -525,30 +537,31 @@ cv_results
 
 Compute the mean and SD of RMSE across folds.
 
-```{r cv_summary, echo=TRUE, eval=FALSE}
+```{r cv_summary, echo=TRUE, eval=TRUE}
 cv_summary <- cv_results %>%
   group_by(model) %>%
   summarise(
-    mean_rmse = ___,
-    sd_rmse = ___,
+    mean_rmse = mean(rmse),
+    sd_rmse = sd(rmse),
     .groups = "drop"
   )
 
 cv_summary
 ```
 
-> Which model has the lower average validation RMSE?  
+> Which model has the lower average validation RMSE?
+>*Model m2, which is relating le and relative humidity has a lower mean rmse.*
 > What does the SD across folds tell you?
-
+>*The SD tells me the consistency of each model between the subset folds. Model 2 displays slightly higher variance across folds than model 1.*
 ---
 
 ## 22) Visualize fold-by-fold validation RMSE
 
-```{r plot_cv_results, echo=TRUE, eval=FALSE}
+```{r plot_cv_results, echo=TRUE, eval=TRUE}
 ggplot(cv_results, aes(x = factor(fold), y = rmse, color = model, group = model)) +
   geom_point(size = 3) +
   geom_line() +
-  theme_classic(base_size = 18) +
+  theme_classic(base_size = 15) +
   labs(
     x = "Held-out validation fold",
     y = "Validation RMSE",
@@ -557,6 +570,7 @@ ggplot(cv_results, aes(x = factor(fold), y = rmse, color = model, group = model)
 ```
 
 > Does one model win consistently across folds, or only sometimes?
+>*Yes, Model 2 consistently wins across folds because it has a lower rmse on every fold. This model is comparing latent energy and relative humidity.*
 
 ---
 
@@ -564,9 +578,9 @@ ggplot(cv_results, aes(x = factor(fold), y = rmse, color = model, group = model)
 
 Fill in:
 
-> My selected model is: `___`
+> My selected model is: `le ~ rh`
 
-> I chose it because: `___`
+> I chose it because: `lowest average RMSE`
 
 ---
 
@@ -574,8 +588,8 @@ Fill in:
 
 Use all of `train_data` now that you have selected the model.
 
-```{r refit_final_model, echo=TRUE, eval=FALSE}
-final_model <- lm(___, data = train_data)
+```{r refit_final_model, echo=TRUE, eval=TRUE}
+final_model <- lm(train_data, data = train_data)
 
 tidy(final_model)
 ```
@@ -586,7 +600,7 @@ tidy(final_model)
 
 Use `predict()` and compute test RMSE.
 
-```{r test_evaluation, echo=TRUE, eval=FALSE}
+```{r test_evaluation, echo=TRUE, eval=TRUE}
 test_pred <- predict(final_model, newdata = test_data)
 
 test_rmse <- sqrt(mean((test_data[[response_var]] - test_pred)^2))
@@ -595,6 +609,7 @@ test_rmse
 ```
 
 > How does the test RMSE compare with the cross-validation RMSE?
+>*The test RMSE of m2 was close to the cross-validation mean RMSE of 76.28. Given a standard deviation of 1.37, and the test RMSE of 77.2, the model can generalize a decently reliable estimate.*
 
 ---
 
@@ -607,7 +622,7 @@ Answer in **5–7 sentences**:
 - Did the chosen model generalize well to test data?
 - What would it mean if test RMSE were much worse than validation RMSE?
 
-> *Write your answer here.*
+>*I made sure the test set was not used during model selection so it could remain unseen in order to provide an unbiased estimate of how the model performs. Cross validation helped choose between models because the model with the lower mean RMSE and standard error could be chosen- being model 2. The chosen model generalizes well to the test data because after testing with the new data, the RMSE was still around the same, being 77.2, as well as still being lower than m1's fit rmse of 79. If the test RMSE was much worse than the validation RMSE, it would show that our model does not perform well on unseen data, or possibly that the original separation between train/test sets could have been biased to begin with.*
 
 ---
 
